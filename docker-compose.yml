@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:1.19.9-alpine
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./proxy/nginx:/etc/nginx/conf.d
+      - ./proxy/certbot/conf:/etc/letsencrypt
+      - ./proxy/certbot/www:/var/www/certbot
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./proxy/certbot/conf:/etc/letsencrypt
+      - ./proxy/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  foundry:
+    image: felddy/foundryvtt:release
+    hostname: my_foundry_host
+    init: true
+    restart: "unless-stopped"
+    volumes:
+      - type: bind
+        source: ./foundry
+        target: /data
+    environment:
+      - FOUNDRY_PASSWORD=<YOUR FOUNDRY PASSWORD HERE>
+      - FOUNDRY_USERNAME=<YOUR FOUNDRY USERNAME HERE>
+      - FOUNDRY_ADMIN_KEY=<YOUR FOUNDRY SERVER ADMIN PASSWORD HERE>
+      - FOUNDRY_LICENSE_KEY=<YOUR FOUNDRY LICENSE KEY HERE>
+      - FOUNDRY_MINIFY_STATIC_FILES=true
+      - FOUNDRY_PROXY_PORT=80
+      - FOUNDRY_PROXY_SSL=true
+    expose:
+      - "30000"
